@@ -55,6 +55,11 @@ class CLOModel():
         St = np.vstack([np.ones(self.n_sims), St])
         
         # use cumulative product (over rows) to calculate simulation paths, and multiply by initial value V0
+        
+        #Might want to do this to save the normal draws too:
+        # if return_normal:
+            # return self.S0 * St.cumprod(axis=0), normal
+        
         return self.S0 * St.cumprod(axis=0) # axis=0 to calculate over rows
         
         
