@@ -6,7 +6,8 @@
 
 # - setup (called by init): sets up model parameters
 # - load_default: loads Cumulative Default Rates DataFrame
-# - GBM: draws an array of underlying asset value paths
+# - GBM_fig: draws an array of underlying asset value paths for the purpose of plotting
+# - GBM: draws an array of underlying asset value paths for the CLO model
 
 # IMPORTS
 import pandas as pd
@@ -18,21 +19,24 @@ class CLOModel():
         self.load_default() # load default rates
         
     def setup(self,**kwargs):
-        #(1) Model parameters
+        # (1) Model parameters
         self.parameter = 1.0 # test parameter
         
-        #(2) Brownian Motion
-        self.S0 = 100 # asset value period 0
-        self.mu = 0.1 # drift coefficient
-        self.sigma_m = 0.1 # market level variance
-        self.sigma_j = 0.1 # firm level variance
+        # (2) Brownian Motion
+        self.V0 = 100 # asset value period 0
+        self.mu = 0.02 # drift coefficient
+        self.sigma_m = 0.14 # market level variance
+        self.sigma_j = 0.25 # firm level variance
         self.sigma = (self.sigma_m ** 2 + self.sigma_j ** 2) ** 0.5 # total variance parameter
         self.T = 5 # time to maturity
         self.m = 100 # number of steps (granularity of process)
         self.n = 1000 # number of simulations
         self.j = 100 # number of loans
-         
-        #(2) Update baseline parameters using keywords
+        
+        # (3) SPV cash flow and value calculations
+        self.B = 70 # face value default
+        
+        # Update baseline parameters using keywords
         for key,val in kwargs.items():
             setattr(self,key,val)
 
@@ -81,8 +85,19 @@ class CLOModel():
         incr = drift + diff
         incr[0,:,:] = 0 # period t=1 has no drift/diffusion yet
         
-        return V0 * np.exp(incr.cumsum(axis=0))
+        return self.V0 * np.exp(incr.cumsum(axis=0))
+    
+    def SPV_value(self):
+        '''SPV terminal values
+        '''
+        # (1) draw asset paths
+        V = self.GBM()[-1,:,:] # take only terminal values
         
+        # (2) calculate minimum and take sum
+        CF = np.minimum(V, self.B)
+        CF_sum = np.sum(CF, axis=1) # take sum over firms j = 1, ..., J
+        
+        return np.sort(CF_sum)
         
         
         
