@@ -8,6 +8,7 @@
 # - load_default: loads Cumulative Default Rates DataFrame
 # - GBM_fig: draws an array of underlying asset value paths for the purpose of plotting
 # - GBM: draws an array of underlying asset value paths for the CLO model
+# - SPV_value: simulates assets and calculates SPV values
 
 # IMPORTS
 import pandas as pd
