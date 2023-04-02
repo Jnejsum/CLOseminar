@@ -10,6 +10,7 @@
 # - GBM: draws an array of underlying asset value paths for the CLO model
 # - SPV_value: simulates assets and calculates SPV values
 # - face_value: calculates the face value of a loan, given rating and maturity
+# - result_table: calculates result table (face value, market value, etc.)
 
 # IMPORTS
 import pandas as pd
@@ -37,6 +38,9 @@ class CLOModel():
         self.rating = 'B' # rating for each loan
         self.default = self.load_default()
         self.B = self.face_value() # call face value function to calculate
+        
+        # (3) market value calculation
+        self.rf = 0.01 # risk free interest rate
         
         # Update baseline parameters using keywords
         for key,val in kwargs.items():
@@ -110,6 +114,27 @@ class CLOModel():
         
         return self.V0 / np.exp( - norm.ppf(def_prob) * self.sigma * np.sqrt(self.T)
                                  - ( self.mu - 0.5 * self.sigma ** 2 ) * self.T )
+    
+    def result_table(self):
+        '''Creates result table
+        RETURNS:
+        DataFrame with model simulation results
+        '''
+        # (1) create DataFrame
+        df = self.default
+        df = df.loc[:'B', [self.T]] # select only maturity T
+        df.rename(columns={self.T:'default probability'}, inplace=True)
         
+        # (2) add face value column
+        SPV_values = self.SPV_value()
+        df['face value'] = np.quantile(SPV_values, df['default probability'].values/100) # quantile of sim. dist.
         
+        # (3) add market value column
+        for k in df.index: # for each rating
+            Bk = np.quantile(SPV_values, df.loc[k, 'default probability']/100) # tranche value
+            df.loc[k, 'market value'] = np.minimum(SPV_values, Bk).mean() * np.exp(-self.rf * self.T)
+            
         
+        # TRANCHING ...
+          
+        return df  
