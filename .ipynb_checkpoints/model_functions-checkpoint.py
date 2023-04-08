@@ -25,7 +25,8 @@ class CLOModel():
     def setup(self, **kwargs):
         # (1) Brownian Motion
         self.V0 = 100 # asset value period 0
-        self.mu = 0.091 # drift coefficient
+        self.rf = 0.004 # risk free interest rate
+        self.c = 0.05 # risk premium parameter
         self.sigma_m = 0.8*0.14 # market level variance (0.8 stems from beta)
         self.sigma_j = 0.25 # firm level variance
         self.sigma = (self.sigma_m ** 2 + self.sigma_j ** 2) ** 0.5 # total variance parameter
@@ -39,13 +40,10 @@ class CLOModel():
         self.default = self.load_default()
         self.B = self.face_value() # call face value function to calculate
         
-        # (3) market value calculation
-        self.rf = 0.035 # risk free interest rate
-        
         # Update baseline parameters using keywords
         for key,val in kwargs.items():
-            setattr(self,key,val)
-
+            setattr(self,key,val) 
+            
     def load_default(self):
         '''Loads S&P Cumulative Default Rates for 1981-2021 as a dataframe'''
         return pd.read_excel('data\default_rates_SP.xlsx', sheet_name='adjust', header=2, index_col='Rating')
@@ -56,10 +54,10 @@ class CLOModel():
         Numpy array of dimensions (1 + number of simulations, total steps)
         '''
         # see: https://quantpy.com.au/stochastic-calculus/simulating-geometric-brownian-motion-gbm-in-python/
-        
+
         # (1) define calculation parts
         dt = self.T / self.m # calculate each step (total time / frequency)
-        drift = self.mu - 0.5 * self.sigma ** 2
+        drift = (self.rf + self.c) - 0.5 * self.sigma ** 2
         
         # (2) draw and prepare array
         np.random.seed(50) # set seed
@@ -79,12 +77,13 @@ class CLOModel():
         RETURNS:
         Numpy array of dimensions (time to maturity + 1, # of simulations, # of loans)
         '''
+        
         # (1) define calculation parts
         if risk_neutral: drift = self.rf - 0.5 * self.sigma ** 2
-        else: drift = self.mu - 0.5 * self.sigma ** 2
+        else: drift = (self.rf + self.c) - 0.5 * self.sigma ** 2
 
         # (2) draw and prepare array
-        np.random.seed(50) # set seed
+        np.random.seed(2020) # set seed
         W = np.random.normal(loc=0, scale=1, size=(self.T+1, self.n, self.j+1)) # draw normal distribution
 
         # (3) calculate increments and take sum
@@ -112,10 +111,11 @@ class CLOModel():
         RETURNS:
         Face value B
         '''
+        
         def_prob = self.default.loc[self.rating, self.T]/100 # cumulative default probability from table        
         
         return self.V0 / np.exp( - norm.ppf(def_prob) * self.sigma * np.sqrt(self.T)
-                                 - ( self.mu - 0.5 * self.sigma ** 2 ) * self.T )
+                                 - ( (self.rf + self.c) - 0.5 * self.sigma ** 2 ) * self.T )
     
     def result_table(self):
         '''Creates result table
